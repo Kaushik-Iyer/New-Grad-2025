@@ -14,7 +14,7 @@ jobs:
           curl -s https://raw.githubusercontent.com/cvrve/New-Grad-2025/main/README.md > readme.txt
           
           # Get today's date in the format used in README (MMM DD)
-          echo "TODAY=Nov 21" >> $GITHUB_ENV
+          echo "TODAY=$(date '+%b %d')" >> $GITHUB_ENV
 
       - name: Create Daily Jobs Issue
         uses: actions/github-script@v6
