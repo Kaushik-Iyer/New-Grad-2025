@@ -1,7 +1,7 @@
 name: Daily Job Updates
 on:
   schedule:
-    - cron: '*/1 * * * *'  # Runs every 1 minutes
+    - cron: '0 0 * * *'  # Runs once daily at midnight
   workflow_dispatch:
 
 jobs:
@@ -10,28 +10,24 @@ jobs:
     steps:
       - name: Get and parse README
         run: |
-          # Get current README content
-          README_CONTENT=$(curl -s https://raw.githubusercontent.com/cvrve/New-Grad-2025/main/README.md)
+          # Save README content to file instead of env var
+          curl -s https://raw.githubusercontent.com/cvrve/New-Grad-2025/main/README.md > readme.txt
           
           # Get today's date in the format used in README (MMM DD)
-          TODAY=$(date '+%b %d')
-          
-          echo "README_CONTENT<<EOF" >> $GITHUB_ENV
-          echo "$README_CONTENT" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "TODAY=$TODAY" >> $GITHUB_ENV
+          echo "TODAY=$(date '+%b %d')" >> $GITHUB_ENV
 
       - name: Create Daily Jobs Issue
         uses: actions/github-script@v6
         with:
           script: |
-            const content = process.env.README_CONTENT;
+            const fs = require('fs');
+            const content = fs.readFileSync('readme.txt', 'utf8');
             const today = process.env.TODAY;
             
             // Parse the markdown table
             const jobSection = content.split('\n')
               .filter(line => line.startsWith('|'))
-              .slice(2) // Skip header and separator
+              .slice(2)
               .map(line => {
                 const [_, company, role, location, link, date] = line.split('|').map(cell => cell.trim());
                 return { company, role, location, date };
@@ -39,15 +35,11 @@ jobs:
               .filter(job => job.date.includes(today));
             
             if (jobSection.length > 0) {
-              const bodyContent = `# New Jobs Posted Today (${today})
-              
-              ${jobSection.map(job => `
-              ### ${job.company} - ${job.role}
-              - 📍 Location: ${job.location}
-              `).join('\n')}
-              
-              [View all jobs](https://github.com/cvrve/New-Grad-2025)
-              `;
+              const bodyContent = `# New Jobs Posted Today (${today})\n\n` +
+                jobSection.map(job => 
+                  `### ${job.company} - ${job.role}\n` +
+                  `- 📍 Location: ${job.location}\n`
+                ).join('\n');
               
               await github.rest.issues.create({
                 owner: context.repo.owner,
