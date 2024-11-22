@@ -29,8 +29,11 @@ jobs:
               .filter(line => line.startsWith('|'))
               .slice(2)
               .map(line => {
-                const [_, company, role, location, link, date] = line.split('|').map(cell => cell.trim());
-                return { company, role, location, date };
+                const [_, company, role, location, applicationLink, date] = line.split('|').map(cell => cell.trim());
+                // Extract href from the application link HTML
+                const linkMatch = applicationLink.match(/href="([^"]+)"/);
+                const link = linkMatch ? linkMatch[1] : '';
+                return { company, role, location, link, date };
               })
               .filter(job => job.date.includes(today));
             
@@ -38,7 +41,8 @@ jobs:
               const bodyContent = `# New Jobs Posted Today (${today})\n\n` +
                 jobSection.map(job => 
                   `### ${job.company} - ${job.role}\n` +
-                  `- 📍 Location: ${job.location}\n`
+                  `- 📍 Location: ${job.location}\n` +
+                  `- 🔗 [Apply Here](${job.link})\n`
                 ).join('\n');
               
               await github.rest.issues.create({
