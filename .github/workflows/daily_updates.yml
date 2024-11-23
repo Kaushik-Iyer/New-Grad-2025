@@ -1,7 +1,7 @@
 name: Daily Job Updates
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs once daily at midnight
+    - cron: '0 20 * * *'  # Runs once daily at 8 pm
   workflow_dispatch:
 
 jobs:
