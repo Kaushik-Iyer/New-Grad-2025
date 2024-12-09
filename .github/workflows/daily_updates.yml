@@ -16,9 +16,9 @@ jobs:
           
           # Get date range in EST/EDT
           # Today in EST
-          TODAY_EST=$(TZ=America/New_York date +'%b %-d')
+          TODAY_EST=$(TZ=America/New_York date +'%b %d' | sed 's/^0//')
           # Yesterday in EST
-          YESTERDAY_EST=$(TZ=America/New_York date --date="yesterday" +'%b %-d')
+          YESTERDAY_EST=$(TZ=America/New_York date --date="yesterday" +'%b %d' | sed 's/^0//')
           
           # Store both dates as environment variables
           echo "TODAY_EST=$TODAY_EST" >> $GITHUB_ENV
@@ -41,17 +41,41 @@ jobs:
             // Parse the markdown table
             const jobSection = content.split('\n')
               .filter(line => line.startsWith('|'))
-              .slice(2)
+              .slice(2)  // Skip header and separator rows
               .map(line => {
-                const [_, company, role, location, applicationLink, date] = line.split('|').map(cell => cell.trim());
-                const linkMatch = applicationLink.match(/href="([^"]+)"/);
+                // Split by | but keep empty cells
+                const cells = line.split('|').map(cell => cell.trim());
+                if (cells.length < 6) return null; // Skip invalid rows
+                
+                // Extract company name (remove ** if present)
+                const company = cells[1].replace(/\*\*/g, '').trim();
+                
+                // Get other fields
+                const role = cells[2].trim();
+                const location = cells[3].replace(/<\/br>/g, ', ').replace(/<br>/g, ', ').trim();
+                
+                // Extract href from the HTML link
+                const linkMatch = cells[4].match(/href="([^"]+)"/);
                 const link = linkMatch ? linkMatch[1] : '';
+                
+                // Get date (trim any whitespace)
+                const date = cells[5].trim();
+                
                 return { company, role, location, link, date };
               })
-              // Get jobs from both today and yesterday in EST
-              .filter(job => job.date.includes(today) || job.date.includes(yesterday));
+              .filter(job => job !== null)  // Remove any invalid entries
+              .filter(job => {
+                // Check if the job date matches either today or yesterday
+                // Convert dates to same format for comparison
+                const jobDate = job.date.toLowerCase();
+                return jobDate.includes(today.toLowerCase()) || 
+                       jobDate.includes(yesterday.toLowerCase());
+              });
             
             if (jobSection.length > 0) {
+              console.log(`Found ${jobSection.length} jobs`);
+              jobSection.forEach(job => console.log(`${job.company} - ${job.date}`));
+              
               const bodyContent = `# New Jobs Posted (${yesterday} - ${today})\n\n` +
                 jobSection.map(job => 
                   `### ${job.company} - ${job.role}\n` +
@@ -67,4 +91,7 @@ jobs:
                 body: bodyContent,
                 labels: ['daily-jobs']
               });
+            } else {
+              console.log('No jobs found for the specified dates');
+              console.log('Searching for dates:', today, yesterday);
             }
