@@ -1,7 +1,7 @@
 name: Daily Job Updates
 on:
   schedule:
-    - cron: '0 20 * * *'  # Runs once daily at 8 pm
+    - cron: '0 6 * * *'  # Runs once daily at 6 am UTC = 1 am EST
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,8 @@ jobs:
           curl -s https://raw.githubusercontent.com/cvrve/New-Grad-2025/main/README.md > readme.txt
           
           # Get today's date in the format used in README (MMM DD)
-          echo "TODAY=$(date +'%b %-d')" >> $GITHUB_ENV
+          YESTERDAY=$(TZ=America/New_York date --date="yesterday" +'%b %-d')
+          echo "TODAY=$YESTERDAY" >> $GITHUB_ENV
 
       - name: Debug date format
         run: |
