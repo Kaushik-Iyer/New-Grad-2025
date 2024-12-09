@@ -19,7 +19,7 @@ jobs:
 
       - name: Debug date format
         run: |
-          echo "Generated date: $(date +'%b %-d')"
+          echo "Generated date: $YESTERDAY"
           echo "Example from README: Nov 22"
       
       - name: Create Daily Jobs Issue
