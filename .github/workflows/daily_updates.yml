@@ -14,12 +14,12 @@ jobs:
           curl -s https://raw.githubusercontent.com/cvrve/New-Grad-2025/main/README.md > readme.txt
           
           # Get today's date in the format used in README (MMM DD)
-          YESTERDAY="Dec 07"
+          YESTERDAY=$(TZ=America/New_York date --date="yesterday" +'%b %-d')
           echo "TODAY=$YESTERDAY" >> $GITHUB_ENV
 
       - name: Debug date format
         run: |
-          echo "Yesterday's date in EST: $YESTERDAY"
+          echo "Yesterday's date in EST: $TODAY"
           echo "Example from README: Nov 22"
       
       - name: Create Daily Jobs Issue
