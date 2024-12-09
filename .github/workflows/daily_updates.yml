@@ -1,7 +1,8 @@
 name: Daily Job Updates
 on:
   schedule:
-    - cron: '0 6 * * *'  # Runs once daily at 6 am UTC = 1 am EST
+    # Run at 9am UTC (4am EST) to catch all updates from previous EST day
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 jobs:
@@ -10,17 +11,23 @@ jobs:
     steps:
       - name: Get and parse README
         run: |
-          # Save README content to file instead of env var
+          # Save README content to file
           curl -s https://raw.githubusercontent.com/cvrve/New-Grad-2025/main/README.md > readme.txt
           
-          # Get today's date in the format used in README (MMM DD)
-          YESTERDAY=$(TZ=America/New_York date --date="yesterday" +'%b %-d')
-          echo "TODAY=$YESTERDAY" >> $GITHUB_ENV
-
+          # Get date range in EST/EDT
+          # Today in EST
+          TODAY_EST=$(TZ=America/New_York date +'%b %-d')
+          # Yesterday in EST
+          YESTERDAY_EST=$(TZ=America/New_York date --date="yesterday" +'%b %-d')
+          
+          # Store both dates as environment variables
+          echo "TODAY_EST=$TODAY_EST" >> $GITHUB_ENV
+          echo "YESTERDAY_EST=$YESTERDAY_EST" >> $GITHUB_ENV
+          
       - name: Debug date format
         run: |
-          echo "Yesterday's date in EST: $TODAY"
-          echo "Example from README: Nov 22"
+          echo "Today's date in EST: $TODAY_EST"
+          echo "Yesterday's date in EST: $YESTERDAY_EST"
       
       - name: Create Daily Jobs Issue
         uses: actions/github-script@v6
@@ -28,7 +35,8 @@ jobs:
           script: |
             const fs = require('fs');
             const content = fs.readFileSync('readme.txt', 'utf8');
-            const today = process.env.TODAY;
+            const today = process.env.TODAY_EST;
+            const yesterday = process.env.YESTERDAY_EST;
             
             // Parse the markdown table
             const jobSection = content.split('\n')
@@ -36,25 +44,26 @@ jobs:
               .slice(2)
               .map(line => {
                 const [_, company, role, location, applicationLink, date] = line.split('|').map(cell => cell.trim());
-                // Extract href from the application link HTML
                 const linkMatch = applicationLink.match(/href="([^"]+)"/);
                 const link = linkMatch ? linkMatch[1] : '';
                 return { company, role, location, link, date };
               })
-              .filter(job => job.date.includes(today));
+              // Get jobs from both today and yesterday in EST
+              .filter(job => job.date.includes(today) || job.date.includes(yesterday));
             
             if (jobSection.length > 0) {
-              const bodyContent = `# New Jobs Posted Today (${today})\n\n` +
+              const bodyContent = `# New Jobs Posted (${yesterday} - ${today})\n\n` +
                 jobSection.map(job => 
                   `### ${job.company} - ${job.role}\n` +
                   `- 📍 Location: ${job.location}\n` +
-                  `- 🔗 [Apply Here](${job.link})\n`
+                  `- 🔗 [Apply Here](${job.link})\n` +
+                  `- 📅 Posted: ${job.date}\n`
                 ).join('\n');
               
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `New Job Postings - ${today}`,
+                title: `New Job Postings (${yesterday} - ${today})`,
                 body: bodyContent,
                 labels: ['daily-jobs']
               });
